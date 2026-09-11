@@ -1,5 +1,6 @@
 require("dotenv").config();
 
+const pool = require("./db");
 const express = require('express');
 
 const app = express();
@@ -50,9 +51,16 @@ app.get("/api/neo/feed", async (req, res) => {
     }
 });
 
-app.get('/about', (req, res) => {
-    res.send("About Page");
-});
+// API connection to postgres database to fetch asteroid data
+app.get("/api/asteroids", async (req, res) => {
+    try {
+        const result = await pool.query("SELECT * FROM asteroids ORDER BY miss_distance_km ASC"); // Ascending order
+        res.json(result.rows);
+    } catch (error) {
+        console.error("Failed to fetch from database", error.message);
+        res.status(500).json({ error: "Could not fetch asteroids from database" });
+    }
+})
 
 app.listen(3000, () => {
     console.log("Server is running on port 3000");
