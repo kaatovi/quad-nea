@@ -18,6 +18,7 @@ function transformNeoData(rawData) {
             
             return {
                 // Asteroid identification
+                neoId: asteroid.neo_reference_id,
                 name: asteroid.name,
                 date: date,
                 diameterKm: Number(diameterKm.toFixed(3)),
@@ -30,13 +31,41 @@ function transformNeoData(rawData) {
     return asteroids;
 }
 
-// Routes for the API
-app.get("/api/neo/feed", async (req, res) => {
+// Function to save asteroid data into database
+async function saveAsteroids(asteroids) {
+    const query = `
+    INSERT INTO asteroids (neo_id, name, close_approach_date, diameter_km, miss_distance_km, hazardous)
+    VALUES ($1, $2, $3, $4, $5, $6)
+    ON CONFLICT (neo_id, close_approach_date) DO UPDATE SET
+        diameter_km = EXCLUDED.diameter_km,
+        miss_distance_km = EXCLUDED.miss_distance_km,
+        hazardous = EXCLUDED.hazardous
+    `;
 
-    // Fetch NEO data from NASA API
+    let savedCount = 0;
+    // Goes through each iteration until query is complete, then increments the savedCount variable
+    for (const asteroid of asteroids) {
+        await pool.query(query, [
+            asteroid.neoId,
+            asteroid.name,
+            asteroid.date,
+            asteroid.diameterKm,
+            asteroid.missDistanceKm,
+            asteroid.hazardous,
+        ]);
+        savedCount++;
+    }
+
+    return savedCount;
+}
+
+// Routes for the API
+
+// Fetches data from NASA API
+app.get("/api/neo/feed", async (req, res) => {
     const apiKey = process.env.NASA_API_KEY;
-    const startDate = "2026-09-08";
-    const endDate = "2026-09-09";
+    const startDate = req.query.start_date || "2026-09-15";
+    const endDate = req.query.end_date || "2026-09-16";
 
     const url = `https://api.nasa.gov/neo/rest/v1/feed?start_date=${startDate}&end_date=${endDate}&api_key=${apiKey}`;
 
@@ -44,10 +73,33 @@ app.get("/api/neo/feed", async (req, res) => {
         const response = await fetch(url);
         const data = await response.json();
         const asteroids = transformNeoData(data);
+        
         res.json(asteroids);
     } catch (error) {
-        console.error("Failed to fetch NEO data", error.message);
-        res.status(500).json({ error: "Could not fetch NEO data" });
+        console.error("Failed to fetch from NASA API:", error.message);
+        res.status(500).json({ error: "Could not fetch data from NASA API" })
+    }
+});
+
+// Synchronize data with the database
+app.post("/api/neo/sync", async (req, res) => {
+    const apiKey = process.env.NASA_API_KEY;
+    const startDate = "2026-09-15";
+    const endDate = "2026-09-16";
+
+    const url = `https://api.nasa.gov/neo/rest/v1/feed?start_date=${startDate}&end_date=${endDate}&api_key=${apiKey}`;
+
+    // Fetches data from NASA API, transforms it, and saves it to the database
+    try {
+        const response = await fetch(url);
+        const data = await response.json();
+        const asteroids = transformNeoData(data);
+        const saveCount = await saveAsteroids(asteroids);
+
+        res.json({ message: "Sync completed", saved: saveCount });
+    } catch (error) {
+        console.error("Sync failed:", error.message);
+        res.status(500).json({ error: "Sync failed" });
     }
 });
 
