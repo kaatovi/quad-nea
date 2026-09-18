@@ -5,7 +5,7 @@ function transformNeoData(rawData) {
     const entries = Object.entries(rawData.near_earth_objects); // Turns object entries into an array of [date, asteroids] pairs
 
     // Flattens the group of arrays (date, asteroidsOnDat) into a single array of asteroids
-    const asteroids = entries.flatMap(([date, asteroidsOnDate]) => {
+    const asteroids = entries.flatMap(([date, asteroidsOnDate]) => { 
         return asteroidsOnDate.map((asteroid) => {
             // Get relevant asteroid data
             const diameterKm = asteroid.estimated_diameter.kilometers.estimated_diameter_max;
