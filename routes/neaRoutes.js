@@ -5,6 +5,6 @@ const router = express.Router();
 
 // Define routes for NEA data
 router.get('/asteroids', neaController.listAsteroids);
-router.post('/nea/sync', neaController.syncNeaData);
+router.post('/nea/sync', requireAuth, neaController.syncNeaData);
 
 module.exports = router;
