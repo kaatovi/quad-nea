@@ -1,5 +1,6 @@
 const express = require('express');
 const neaController = require('../controllers/neaController'); // Import contoller functions
+const requireAuth = require('../middleware/requireAuth');
 
 const router = express.Router();
 
